@@ -1,0 +1,792 @@
+---
+title: "Data Challenge Part 1"
+output: html_notebook
+---
+
+```{r}
+# load data
+library("tidyverse")
+train = read_csv("train.csv")
+test = read_csv("test.csv")
+```
+```{r}
+# library(tm)
+# library(stringr)
+# train$description_x = str_replace_all(train$description_x, "-", " ")
+# train$description_y = str_replace_all(train$description_y, "-", " ")
+# train$description_x = str_replace_all(train$description_x, "class ", "")
+# train$description_y = str_replace_all(train$description_y, "class ", "")
+# train$description_x = str_replace_all(train$description_x, "cl ", "")
+# train$description_y = str_replace_all(train$description_y, "cl ", "")
+# train$description_x = str_replace_all(train$description_x, " class", "")
+# train$description_y = str_replace_all(train$description_y, " class", "")
+# train$description_x = str_replace_all(train$description_x, " cl", "")
+# train$description_y = str_replace_all(train$description_y, " cl", "")
+# train$description_x = str_replace_all(train$description_x, "  ", " ")
+# train$description_y = str_replace_all(train$description_y, "  ", " ")
+```
+
+
+```{r}
+library("tidytext")
+max_length_train_x <- tibble(test_id = train$test_id, x = train$description_x) %>%
+  unnest_tokens(word, x, token = "characters") %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_train_y <- tibble(test_id = train$test_id, y = train$description_y) %>%
+  unnest_tokens(word, y, token = "characters") %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_test_x <- tibble(test_id = test$test_id, x = test$description_x) %>%
+  unnest_tokens(word, x, token = "characters") %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_test_y <- tibble(test_id = test$test_id, y = test$description_y) %>%
+  unnest_tokens(word, y, token = "characters") %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_char = max(max_length_train_x,max_length_train_y,max_length_test_x,max_length_test_y)
+
+max_length_train_x <- tibble(test_id = train$test_id, x = train$description_x) %>%
+  unnest_tokens(word, x) %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_train_y <- tibble(test_id = train$test_id, y = train$description_y) %>%
+  unnest_tokens(word, y) %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_test_x <- tibble(test_id = test$test_id, x = test$description_x) %>%
+  unnest_tokens(word, x) %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_test_y <- tibble(test_id = test$test_id, y = test$description_y) %>%
+  unnest_tokens(word, y) %>%
+  count(test_id) %>%
+  summarize(max = max(n))
+
+max_length_word = max(max_length_train_x,max_length_train_y,max_length_test_x,max_length_test_y)
+
+# max_length_train_x <- tibble(test_id = train$test_id, x = train$description_x) %>%
+#   unnest_tokens(word, x) %>%
+#   count(test_id) %>%
+#   summarize(max = max(n))
+# 
+# max_length_train_y <- tibble(test_id = train$test_id, y = train$description_y) %>%
+#   unnest_tokens(word, y) %>%
+#   count(test_id) %>%
+#   summarize(max = max(n))
+# 
+# max_length_test_x <- tibble(test_id = test$test_id, x = test$description_x) %>%
+#   unnest_tokens(word, x) %>%
+#   count(test_id) %>%
+#   summarize(max = max(n))
+# 
+# max_length_test_y <- tibble(test_id = test$test_id, y = test$description_y) %>%
+#   unnest_tokens(word, y) %>%
+#   count(test_id) %>%
+#   summarize(max = max(n))
+```
+
+```{r}
+# Word-by-word similarity features
+# 
+# x_count <- x_tokens %>%
+#   count(test_id, word) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+# 
+# x_count_first_letter <- x_count  %>%
+#   mutate(word = substr(word,1,1)) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+#   
+# x_count_first_two_letters <- x_count  %>%
+#   mutate(word = substr(word,1,2)) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+# 
+# y_count <- y_tokens %>%
+#   count(test_id, word) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+# 
+# y_count_first_letter <- y_count  %>%
+#   mutate(word = substr(word,1,1)) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+#   
+# y_count_first_two_letters <- y_count  %>%
+#   mutate(word = substr(word,1,2)) %>%
+#   group_by(test_id,word) %>% 
+#   summarise(n = sum(n)) %>% 
+#   ungroup()
+# 
+# xy_count = full_join(x_count, y_count, by = c("test_id", "word"))
+# xy_count = replace_na(xy_count, list(n.x = 0, n.y = 0))
+# 
+# xy_count_first_letter = full_join(x_count_first_letter, y_count_first_letter, by = c("test_id", "word"))
+# xy_count_first_letter = replace_na(xy_count_first_letter, list(n.x = 0, n.y = 0))
+# 
+# xy_count_first_two_letters = full_join(x_count_first_two_letters, y_count_first_two_letters, by = c("test_id", "word"))
+# xy_count_first_two_letters = replace_na(xy_count_first_two_letters, list(n.x = 0, n.y = 0))
+# 
+# similarity_word = xy_count %>%
+#   group_by(test_id) %>%
+#   summarize(dist_word = sqrt(sum((n.x-n.y)^2))) %>%
+#   ungroup()
+# 
+# similarity_first_letter = xy_count_first_letter %>%
+#   group_by(test_id) %>%
+#   summarize(dist_first_letter = sqrt(sum((n.x-n.y)^2))) %>%
+#   ungroup()
+# 
+# similarity_first_two_letters = xy_count_first_two_letters %>%
+#   group_by(test_id) %>%
+#   summarize(dist_first_two_letters = sqrt(sum((n.x-n.y)^2))) %>%
+#   ungroup()
+# 
+# train_with_feature = train %>% 
+#   full_join(similarity_word,by="test_id") %>%
+#   full_join(similarity_first_letter,by="test_id") %>%
+#   full_join(similarity_first_two_letters,by="test_id") %>%
+#   mutate(same_security=as.factor(same_security))
+# 
+# # for checking purpose
+# filter_word = filter(xy_count, test_id==1)
+# filter_first_letter = filter(xy_count_first_letter, test_id==1)
+# filter_first_two_letters = filter(xy_count_first_two_letters, test_id==1)
+```
+
+```{r}
+# ## stitching string features
+# x_two_letter_stitch <- x_tokens %>%
+#   mutate(word = substr(word, 1,2)) %>%
+#   group_by(test_id) %>%
+#   summarize(word = paste(word, collapse = " "))
+# 
+# y_two_letter_stitch <- y_tokens %>%
+#   mutate(word = substr(word, 1,2)) %>%
+#   group_by(test_id) %>%
+#   summarize(word = paste(word, collapse = " "))
+# 
+# q_gram = 1
+# 
+# library(stringdist)
+# 
+# train_with_feature = train_with_feature %>%
+#   mutate(two_letter_osa = stringdist(x_two_letter_stitch$word,y_two_letter_stitch$word, method="osa", q=q_gram))  %>%
+#   mutate(two_letter_cosine = stringdist(x_two_letter_stitch$word,y_two_letter_stitch$word, method="cosine", q=q_gram))
+```
+
+
+```{r}
+# q_gram = 1
+# 
+# train_with_feature = train_with_feature %>%
+#   mutate(stringdist_osa = stringdist(description_x,description_y, method="osa", q=q_gram))  %>%
+#   # mutate(stringdist_lv = stringdist(description_x,description_y, method="lv", q=q_gram)) %>%
+#   # mutate(stringdist_dl = stringdist(description_x,description_y, method="dl", q=q_gram)) %>%
+#   # mutate(stringdist_lcs = stringdist(description_x,description_y, method="lcs", q=q_gram)) %>%
+#   # mutate(stringdist_qgram = stringdist(description_x,description_y, method="qgram", q=q_gram)) %>%
+#   mutate(stringdist_cosine = stringdist(description_x,description_y, method="cosine", q=q_gram)) #%>%
+#   # mutate(stringdist_jaccard = stringdist(description_x,description_y, method="jaccard", q=q_gram)) %>%
+#   # mutate(stringdist_jw = stringdist(description_x,description_y, method="jw", q=q_gram)) %>%
+#   # mutate(stringdist_soundex = stringdist(description_x,description_y, method="soundex", q=q_gram))
+```
+
+
+
+```{r}
+# # Model
+# library(caret)
+# 
+# # train-test split + logistic regression
+# Train <- createDataPartition(train_with_feature$same_security, p=0.9, list=FALSE)
+# training <- train_with_feature[Train, ]
+# testing <-train_with_feature[-Train, ]
+# 
+# mod_fit <- train(same_security ~ dist_first_two_letters, metric="Accuracy", data=training, method="glm", family="binomial")
+# 
+# mod_fit$finalModel
+# 
+# (traing_accuracy = sum(training$same_security==predict(mod_fit, newdata=training))/nrow(training))
+# 
+# (testing_accuracy = sum(testing$same_security==predict(mod_fit, newdata=testing))/nrow(testing))
+# 
+# results = tibble()
+# #print("train")
+# #cat("TRUE" + sum(training$same_security==TRUE))
+```
+
+
+```{r}
+# global_word_count <- xy_count_first_two_letters %>% 
+#   count(word) %>%
+#   arrange(desc(n)) 
+```
+
+
+KERAS MODELS
+
+
+```{r}
+library(readr)
+library(keras)
+library(tensorflow)
+
+
+FLAGS <- flags(
+  flag_integer("vocab_size_char", 100),
+  flag_integer("max_len_padding_char", max_length_char+5),
+  flag_integer("embedding_size_char", 100),
+  flag_numeric("regularization_char", 0.001),
+  flag_integer("seq_embedding_size_char", 128),
+  flag_integer("vocab_size_word", 50000),
+  flag_integer("max_len_padding_word", max_length_word+2),
+  flag_integer("embedding_size_word", 512),
+  flag_numeric("regularization_word", 0.001),
+  flag_integer("seq_embedding_size_word", 128)
+)
+```
+
+```{r}
+df = train
+
+df_false = filter(df, same_security == FALSE)
+
+df <- train %>% 
+  bind_rows(df_false) %>% 
+  bind_rows(df_false)
+
+tokenizer_char <- text_tokenizer(num_words = FLAGS$vocab_size_char, char_level = TRUE)
+fit_text_tokenizer(tokenizer_char, x = c(df$description_x, df$description_y))
+
+tokenizer_word <- text_tokenizer(num_words = FLAGS$vocab_size_word, char_level = FALSE)
+fit_text_tokenizer(tokenizer_word, x = c(df$description_x, df$description_y))
+
+description_x_char <- texts_to_sequences(tokenizer_char, df$description_x)
+description_y_char <- texts_to_sequences(tokenizer_char, df$description_y)
+
+description_x_char <- pad_sequences(description_x_char, maxlen = FLAGS$max_len_padding_char)#, value = FLAGS$vocab_size + 1)
+description_y_char <- pad_sequences(description_y_char, maxlen = FLAGS$max_len_padding_char)#, value = FLAGS$vocab_size + 1)
+
+# description_x_char <- k_one_hot(description_x_char, FLAGS$vocab_size_char)
+# description_y_char <- k_one_hot(description_y_char, FLAGS$vocab_size_char)
+
+description_x_word <- texts_to_sequences(tokenizer_word, df$description_x)
+description_y_word <- texts_to_sequences(tokenizer_word, df$description_y)
+
+description_x_word <- pad_sequences(description_x_word, maxlen = FLAGS$max_len_padding_word)#, value = FLAGS$vocab_size + 1)
+description_y_word <- pad_sequences(description_y_word, maxlen = FLAGS$max_len_padding_word)#, value = FLAGS$vocab_size + 1)
+
+
+
+```
+
+```{r}
+# Model Definition --------------------------------------------------------
+
+# input1 <- layer_input(shape = c(FLAGS$max_len_padding))
+# input2 <- layer_input(shape = c(FLAGS$max_len_padding))
+# 
+# embedding <- layer_embedding(
+#   input_dim = FLAGS$vocab_size + 2, 
+#   output_dim = FLAGS$embedding_size, 
+#   input_length = FLAGS$max_len_padding, 
+#   embeddings_regularizer = regularizer_l2(l = FLAGS$regularization),
+#   trainable = TRUE,
+#   mask_zero = TRUE
+# )
+# 
+# seq_emb <- layer_lstm(
+#   units = FLAGS$seq_embedding_size,
+#   dropout = 0.3,
+#   recurrent_dropout = 0.3,
+#   return_sequences = FALSE,
+#   recurrent_regularizer = regularizer_l2(l = FLAGS$regularization)
+# )
+
+# seq_emb_mid <- layer_lstm(
+#   units = FLAGS$seq_embedding_size,
+#   dropout = 0.3,
+#   recurrent_dropout = 0.3, 
+#   return_sequences = TRUE,
+#   recurrent_regularizer = regularizer_l2(l = FLAGS$regularization)
+# )
+
+# #BIDIRECTIONAL LSTM
+# seq_emb_bidir <- bidirectional(layer = layer_lstm(
+#   units = FLAGS$seq_embedding_size,
+#   dropout = 0.3,
+#   recurrent_dropout = 0.3,
+#   recurrent_regularizer = regularizer_l2(l = FLAGS$regularization)
+# ))
+
+# vector1 <- embedding(input1) %>%
+  #seq_emb_mid %>%
+  # seq_emb()
+
+# vector2 <- embedding(input2) %>%
+  #seq_emb_mid %>%
+  # seq_emb()
+
+# out <- layer_dot(list(vector1, vector2), axes=1) %>%
+  #layer_multiply(list(vector1, vector2)) %>%
+  # # layer_dot(list(vector1, vector2), axes=1) %>%
+  # layer_batch_normalization() %>%
+  # layer_dropout(0.3) %>%
+  # layer_dense(4, activation = "relu") %>%
+  # layer_batch_normalization() %>%
+  # layer_dropout(0.3) %>%
+  # layer_dense(1, activation = "sigmoid")
+
+# opt = optimizer_adam(lr = 0.01)
+
+# model <- keras_model(list(input1, input2), out)
+# model %>% compile(
+#   optimizer = opt, 
+#   loss = "binary_crossentropy", 
+#   metrics = list(
+#     acc = metric_binary_accuracy
+#   )
+# )
+```
+```{r}
+# Model Fitting -----------------------------------------------------------
+
+# set.seed(2)
+# val_sample <- sample.int(nrow(description_x), size = 0.2*nrow(description_x))
+# 
+# history <- model %>%
+#   fit(
+#     list(description_x[-val_sample,], description_y[-val_sample,]),
+#     df$same_security[-val_sample], 
+#     batch_size = 128, 
+#     epochs = 60, 
+#     validation_data = list(
+#       list(description_x[val_sample,], description_y[val_sample,]), df$same_security[val_sample]
+#       )#,
+#     # callbacks = list(
+#     # callback_early_stopping(monitor = "loss", patience = 5),
+#     # callback_reduce_lr_on_plateau(monitor = "loss", patience = 3)
+#     )
+#   
+# 
+# save_model_hdf5(model, "model-same-security.hdf5", include_optimizer = TRUE)
+# save_text_tokenizer(tokenizer, "tokenizer-same-security.hdf5")
+```
+
+```{r}
+## Model number two using concatenation instead of RNN
+
+input1 <- layer_input(shape = c(FLAGS$max_len_padding_word))
+input2 <- layer_input(shape = c(FLAGS$max_len_padding_word))
+input3 <- layer_input(shape = c(FLAGS$max_len_padding_char))
+input4 <- layer_input(shape = c(FLAGS$max_len_padding_char))
+# input3 <- layer_input(shape = c(FLAGS$max_len_padding_char, 100), dtype="int64")
+# input4 <- layer_input(shape = c(FLAGS$max_len_padding_char, 100), dtype="int64")
+
+embedding_word <- layer_embedding(
+  input_dim = FLAGS$vocab_size_word + 2, 
+  output_dim = FLAGS$embedding_size_word, 
+  input_length = FLAGS$max_len_padding_word, 
+  embeddings_regularizer = regularizer_l2(l = FLAGS$regularization_word),
+  trainable = TRUE,
+  mask_zero = TRUE
+)
+
+embedding_char <- layer_embedding(
+  input_dim = FLAGS$vocab_size_char + 2, 
+  output_dim = FLAGS$embedding_size_char, 
+  input_length = FLAGS$max_len_padding_char, 
+  embeddings_regularizer = regularizer_l2(l = FLAGS$regularization_char),
+  trainable = TRUE,
+  mask_zero = TRUE
+)
+
+
+# seq_emb <- layer_lstm(
+#   units = FLAGS$seq_embedding_size,
+#   dropout = 0.2,
+#   recurrent_dropout = 0.2, 
+#   return_sequences = FALSE,
+#   recurrent_regularizer = regularizer_l2(l = FLAGS$regularization)
+# )
+
+
+# seq_emb_mid <- layer_lstm(
+#   units = FLAGS$seq_embedding_size,
+#   dropout = 0.2,
+#   recurrent_dropout = 0.2,
+#   return_sequences = TRUE,
+#   recurrent_regularizer = regularizer_l2(l = FLAGS$regularization)
+# )
+
+#BIDIRECTIONAL LSTM
+seq_emb_bidir_word <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_word,
+  dropout = 0.20,
+  recurrent_dropout = 0.20,
+  return_sequences = FALSE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_word)
+))
+
+seq_emb_bidir_char <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_char,
+  dropout = 0.20,
+  recurrent_dropout = 0.20,
+  return_sequences = FALSE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_char)
+))
+
+#BIDIRECTIONAL LSTM MID LAYER
+seq_emb_bidir_mid_word <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_word,
+  dropout = 0.20,
+  recurrent_dropout = 0.20,
+  return_sequences = TRUE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_word)
+))
+
+seq_emb_bidir_mid_char_1 <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_char,
+  dropout = 0.20,
+  recurrent_dropout = 0.20,
+  return_sequences = TRUE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_char)
+))
+
+seq_emb_bidir_mid_char_2 <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_word,
+  dropout = 0.20,
+  recurrent_dropout = 0.20,
+  return_sequences = TRUE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_char)
+))
+
+vector1 <- embedding_word(input1) %>%
+  # seq_emb_bidir_mid_word %>%
+  seq_emb_bidir_word
+
+vector2 <- embedding_word(input2) %>%
+  # seq_emb_bidir_mid_word %>%
+  seq_emb_bidir_word
+
+vector3 <- embedding_char(input3) %>%
+  #input3 %>%
+  #seq_emb_bidir_mid_char_1 %>%
+  # seq_emb_bidir_mid_char_2 %>%
+  seq_emb_bidir_char
+  
+
+vector4 <- embedding_char(input4) %>%
+  #input4 %>%
+  #seq_emb_bidir_mid_char_1 %>%
+  # seq_emb_bidir_mid_char_2 %>%
+  seq_emb_bidir_char
+  
+
+out <- 
+  #layer_concatenate(list(vector3, vector4)) %>%
+  layer_concatenate(list(vector1, vector2, vector3, vector4)) %>%
+  layer_dropout(0.2) %>%
+  layer_batch_normalization() %>%
+  layer_dense(32, activation = "relu") %>%
+  layer_dropout(0.2) %>%
+  layer_batch_normalization() %>%
+  layer_dense(8, activation = "relu") %>%
+  layer_dropout(0.2) %>%
+  layer_batch_normalization() %>%
+  layer_dense(1, activation = "sigmoid")
+  # layer_dot(list(vector1, vector2), axes = 1) %>%
+
+opt = optimizer_adam(lr = 0.01)
+
+#model <- keras_model(c(input3, input4), out)
+model <- keras_model(c(input1, input2, input3, input4), out)
+model %>% compile(
+  optimizer = opt, 
+  loss = "binary_crossentropy", 
+  metrics = list(
+    acc = metric_binary_accuracy
+  )
+)
+```
+
+```{r}
+library(caret)
+folds = createFolds(df$description_x, k=5)
+```
+
+
+```{r}
+set.seed(309)
+
+val_sample <- sample.int(nrow(description_x_word), size = 0.2*nrow(description_x_word))
+# 
+# acc = c()
+# loss = c()
+# val_acc = c()
+# val_loss = c()
+# 
+# for (i in 1:5){
+  # val_sample <- folds[[i]]
+  history <- model %>%
+    fit(
+      list(description_x_word,#[-val_sample,], 
+           description_y_word,#[-val_sample,],
+           description_x_char,#[-val_sample,],
+           description_y_char#[-val_sample,]
+           ),
+      df$same_security,#[-val_sample], 
+      batch_size = 128, 
+      epochs = 50, 
+      # validation_data = list(
+      #   list(description_x_word[val_sample,],
+      #        description_y_word[val_sample,],
+      #        description_x_char[val_sample,],
+      #        description_y_char[val_sample,]
+      #        ),
+        # df$same_security[val_sample]
+        # ),
+      callbacks = list(
+      # # callback_early_stopping(patience = 5),
+      callback_reduce_lr_on_plateau(patience = 10)
+      )
+    )
+#   acc = c(acc, tail(history$metrics$acc, n=1))
+#   loss = c(loss, tail(history$metrics$loss, n=1))
+#   val_acc = c(val_acc, tail(history$metrics$val_acc, n=1))
+#   val_loss = c(val_loss, tail(history$metrics$val_loss, n=1))
+# }
+
+# cat("acc:\n", mean(acc))
+# cat("loss:\n", mean(loss))
+# cat("val_acc\n:", mean(val_acc))
+# cat("val_loss\n:", mean(val_loss))
+
+save_model_hdf5(model, "model-same-security-2.hdf5", include_optimizer = TRUE)
+save_text_tokenizer(tokenizer_word, "tokenizer-same-security-2-word.hdf5")
+save_text_tokenizer(tokenizer_char, "tokenizer-same-security-2-char.hdf5")
+```
+
+```{r}
+## Model number three using 1D-convnets
+
+
+# Model Definition --------------------------------------------------------
+
+# input1 <- layer_input(shape = c(FLAGS$max_len_padding))
+# input2 <- layer_input(shape = c(FLAGS$max_len_padding))
+# 
+# embedding <- layer_embedding(
+#   input_dim = FLAGS$vocab_size + 2, 
+#   output_dim = FLAGS$embedding_size, 
+#   input_length = FLAGS$max_len_padding, 
+#   embeddings_regularizer = regularizer_l2(l = FLAGS$regularization),
+#   trainable = TRUE
+#   #mask_zero = TRUE
+# )
+# 
+# conv_1D_1 <- layer_conv_1d(filters = 32, kernel_size = 2, activation = "relu")
+# #layer_maxpool_1 <- layer_max_pooling_1d(pool_size = 5)
+# conv_1D_2 <- layer_conv_1d(filters = 64, kernel_size = 1, activation = "relu")
+# #layer_global_maxpool_1 <- layer_global_max_pooling_1d()
+# 
+# vector1 <- embedding(input1) %>%
+#   conv_1D_1 %>%
+#   #layer_maxpool_1 %>%
+#   conv_1D_2 %>%
+#   #layer_global_maxpool_1 %>%
+#   layer_flatten()
+# 
+# vector2 <- embedding(input2) %>%
+#   conv_1D_1 %>%
+#   #layer_maxpool_1 %>%
+#   conv_1D_2 %>%
+#   #layer_global_maxpool_1 %>%
+#   layer_flatten()
+# 
+# out <- layer_concatenate(c(vector1, vector2)) %>%
+#   #layer_multiply(list(vector1, vector2)) %>%
+#   # # layer_dot(list(vector1, vector2), axes=1) %>%
+#   layer_batch_normalization() %>%
+#   layer_dropout(0.5) %>%
+#   # layer_dense(4, activation = "relu") %>%
+#   # layer_batch_normalization() %>%
+#   # layer_dropout(0.5) %>%
+#   layer_dense(1, activation = "sigmoid")
+# 
+# opt = optimizer_adam(lr = 0.01)
+# 
+# model3 <- keras_model(list(input1, input2), out)
+# model3 %>% compile(
+#   optimizer = opt, 
+#   loss = "binary_crossentropy", 
+#   metrics = list(
+#     acc = metric_binary_accuracy
+#   )
+# )
+```
+```{r}
+# set.seed(1)
+# val_sample <- sample.int(nrow(description_x), size = 0.2*nrow(description_x))
+# 
+# model3 %>%
+#   fit(
+#     list(description_x[-val_sample,], description_y[-val_sample,]),
+#     df$same_security[-val_sample], 
+#     batch_size = 128, 
+#     epochs = 30, 
+#     validation_data = list(
+#       list(description_x[val_sample,], description_y[val_sample,]), df$same_security[val_sample]
+#       )#,
+#       # callbacks = list(
+#       # callback_early_stopping(patience = 5),
+#       # callback_reduce_lr_on_plateau(patience = 3)
+#     #)
+#   )
+# 
+# save_model_hdf5(model3, "model-same-security-3.hdf5", include_optimizer = TRUE)
+# save_text_tokenizer(tokenizer, "tokenizer-same-security-3.hdf5")
+```
+
+
+
+PREDICTION SECTION
+
+
+
+```{r}
+# Prediction --------------------------------------------------------------
+# In a fresh R session:
+# Load model and tokenizer -
+
+# model <- load_model_hdf5("model-same-security.hdf5", compile = TRUE)
+# tokenizer_word <- load_text_tokenizer("tokenizer-same-security.hdf5")
+# tokenizer_char <- load_text_tokenizer("tokenizer-same-security.hdf5")
+```
+
+```{r}
+predict_security_list <- function(model, tokenizer_word, tokenizer_char, description_x, description_y) {
+  
+  description_x_word <- texts_to_sequences(tokenizer_word, description_x)
+  description_y_word <- texts_to_sequences(tokenizer_word, description_y)
+  
+  description_x_word <- pad_sequences(description_x_word, maxlen = FLAGS$max_len_padding_word)
+  description_y_word <- pad_sequences(description_y_word, maxlen = FLAGS$max_len_padding_word)
+  
+  description_x_char <- texts_to_sequences(tokenizer_char, description_x)
+  description_y_char <- texts_to_sequences(tokenizer_char, description_y)
+  
+  description_x_char <- pad_sequences(description_x_char, maxlen = FLAGS$max_len_padding_char)
+  description_y_char <- pad_sequences(description_y_char, maxlen = FLAGS$max_len_padding_char)
+  
+  as.numeric(predict(model, list(description_x_word, description_y_word, description_x_char, description_y_char)))
+}
+
+# predict_security_list_old <- function(model, tokenizer, description_x, description_y) {
+#   
+#   description_x <- texts_to_sequences(tokenizer, description_x)
+#   description_y <- texts_to_sequences(tokenizer, description_y)
+# 
+#   description_x <- pad_sequences(description_x, maxlen = FLAGS$max_len_padding)
+#   description_y <- pad_sequences(description_y, maxlen = FLAGS$max_len_padding)
+# 
+#   as.numeric(predict(model, list(description_x, description_y)))
+# }
+```
+
+```{r}
+predict_security_list(model, tokenizer_word, tokenizer_char, "hello","hello2")
+```
+
+
+```{r}
+# Getting train predictions
+train_predictions = round(predict_security_list(model, tokenizer_word, tokenizer_char, df$description_x, df$description_y),5)
+train_results = df %>%
+  mutate(prediction = train_predictions>0.5) %>%
+  mutate(correct = (same_security == prediction))
+
+```
+
+```{r}
+# Getting train prediction metrics
+library(Metrics)
+auc(df$same_security==TRUE, train_predictions)
+accuracy(df$same_security==TRUE, train_predictions>0.5)
+f1(df$same_security==TRUE, train_predictions>0.5)
+```
+```{r}
+# Getting Validation predictions
+
+# description_x <- texts_to_sequences(tokenizer, df$description_x[val_sample])
+# description_y <- texts_to_sequences(tokenizer, df$description_y[val_sample])
+# 
+# description_x <- pad_sequences(description_x, maxlen = FLAGS$max_len_padding)
+# description_y <- pad_sequences(description_y, maxlen = FLAGS$max_len_padding)
+# 
+# score <- model %>% evaluate(
+#   list(description_x, description_y),
+#   df$same_security[val_sample],
+#   verbose = 0
+# )
+# 
+# # Output metrics
+# cat('Val loss:', score[[1]], '\n')
+# cat('Val accuracy:', score[[2]], '\n')
+
+val_predictions = round(predict_security_list(model, tokenizer_word, tokenizer_char, df$description_x[val_sample],df$description_y[val_sample]),5)
+
+val_results <- tibble(description_x = df$description_x[val_sample]) %>%
+  mutate(description_y = df$description_y[val_sample]) %>%
+  mutate(same_security = df$same_security[val_sample]) %>%
+  mutate(val_predictions = val_predictions>0.5) %>%
+  mutate(correct = (same_security == val_predictions))
+```
+```{r}
+auc(df$same_security[val_sample]==TRUE, val_predictions)
+accuracy(df$same_security[val_sample]==TRUE, val_predictions>0.5)
+f1(df$same_security[val_sample]==TRUE, val_predictions>0.5)
+```
+
+
+```{r}
+# Getting test predictions
+test_predictions = round(predict_security_list(model, tokenizer_word, tokenizer_char, test$description_x,test$description_y),5)
+test_results = test %>%
+  mutate(same_security = test_predictions>0.5) %>%
+  mutate(same_security_prob = test_predictions)
+
+test_results_count = test_results %>%
+  count(same_security)
+
+manual_labels = read_csv("manual_labels.csv")
+
+test_results_compare = test_results %>%
+  mutate(manual_labels = manual_labels$same_security) %>%
+  mutate(different = same_security != manual_labels)
+```
+```{r}
+save_model_hdf5(model, "model-same-security-final.hdf5", include_optimizer = TRUE)
+save_text_tokenizer(tokenizer_word, "tokenizer-same-security-final-word.hdf5")
+save_text_tokenizer(tokenizer_char, "tokenizer-same-security-final-char.hdf5")
+```
+
+```{r}
+write_csv(test_results, "submission_phase1_team6.csv")
+```
+

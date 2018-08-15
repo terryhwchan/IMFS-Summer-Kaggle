@@ -1,0 +1,516 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# load data
+library("tidyverse")
+library(lubridate)
+library(readr)
+library(keras)
+library(tensorflow)
+library(tidytext)
+library(Metrics)
+
+train = read_csv("train.csv")
+test = read_csv("test.csv")
+```
+```{r}
+
+
+df = train
+colnames(df)[colnames(df)=="Adj Close"] <- "adj_close"
+
+df <- df %>%
+  #unite("all_news", Top1:Top25) %>% 
+  mutate(change = (adj_close - Open)/Open) %>%
+  mutate(up = (change)>0)
+
+# # break up the strings in each row by " "
+# temp <- strsplit(df$Review_Content, split=" ")
+# 
+# # count the number of words as the length of the vectors
+# df$wordCount <- sapply(temp, length)
+
+
+
+```
+
+```{r}
+max_length_train = 0
+max_length_test = 0
+
+for (i in 1:25){
+
+  max_length_train_df <- tibble(date = df$Date, x = df[[7+i]]) %>%
+  unnest_tokens(word, x) %>%
+  count(date)
+
+  if (max(max_length_train_df$n)>max_length_train){
+    max_length_train = max(max_length_train_df$n)
+  }
+
+  max_length_test_df <- tibble(date = test$Date, x = test[[1+i]]) %>%
+  unnest_tokens(word, x) %>%
+  count(date)
+
+  if (max(max_length_test_df$n)>max_length_test){
+    max_length_test = max(max_length_test_df$n)
+  }
+}
+```
+
+```{r}
+FLAGS <- flags(
+  flag_integer("vocab_size_word", 50000),
+  flag_integer("max_len_padding_word", max(max_length_train, max_length_test) + 2),
+  flag_integer("embedding_size_word", 256),
+  flag_numeric("regularization_word", 0.01),
+  flag_integer("seq_embedding_size_word", 128)
+)
+
+for (i in 1:25){
+  eval(parse(text = paste0("input",i," <- layer_input(shape = c(FLAGS$max_len_padding_word))")))
+}
+```
+```{r}
+tokenizer_word <- text_tokenizer(num_words = FLAGS$vocab_size_word, char_level = FALSE)
+fit_text_tokenizer(tokenizer_word, x = c(as_vector(df[8:32])))
+
+for (i in 1:25){ 
+  eval(parse(text = paste0("top", i, " = texts_to_sequences(tokenizer_word, df$Top", i, ")")))
+  eval(parse(text = paste0("top", i, " = pad_sequences(top", i, ", maxlen = FLAGS$max_len_padding_word)")))
+}
+
+```
+```{r}
+embedding_word <- layer_embedding(
+  input_dim = FLAGS$vocab_size_word + 2, 
+  output_dim = FLAGS$embedding_size_word, 
+  input_length = FLAGS$max_len_padding_word, 
+  embeddings_regularizer = regularizer_l2(l = FLAGS$regularization_word),
+  trainable = TRUE,
+  mask_zero = TRUE
+)
+
+seq_emb_bidir_word <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_word,
+  dropout = 0.6,
+  recurrent_dropout = 0.6,
+  return_sequences = FALSE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_word)
+))
+
+seq_emb_bidir_mid_word <- bidirectional(layer = layer_lstm(
+  units = FLAGS$seq_embedding_size_word,
+  dropout = 0.6,
+  recurrent_dropout = 0.6,
+  return_sequences = TRUE,
+  recurrent_regularizer = regularizer_l2(l = FLAGS$regularization_word)
+))
+```
+```{r}
+for (i in 1:25){
+  text = paste0("vector", i, "<- embedding_word(input",i,") %>%
+                seq_emb_bidir_mid_word %>%
+                seq_emb_bidir_word ")
+  
+  eval(parse(text=text))
+}
+
+
+out <- 
+  layer_concatenate(list(vector1, 
+                         vector2, 
+                         vector3, 
+                         vector4,
+                         vector5,
+                         vector6,
+                         vector7, 
+                         vector8, 
+                         vector9,
+                         vector10,
+                         vector11,
+                         vector12, 
+                         vector13, 
+                         vector14,
+                         vector15,
+                         vector16,
+                         vector17, 
+                         vector18, 
+                         vector19,
+                         vector20,
+                         vector21,
+                         vector22, 
+                         vector23, 
+                         vector24,
+                         vector25)) %>%
+  # layer_dropout(0.6) %>%
+  # layer_batch_normalization() %>%
+  # layer_dense(32, activation = "relu") %>%
+  # # layer_dropout(0.2) %>%
+  # # layer_batch_normalization() %>%
+  # # layer_dense(8, activation = "relu") %>%
+  layer_dropout(0.6) %>%
+  layer_batch_normalization() %>%
+  layer_dense(1, activation = "sigmoid")
+
+opt = optimizer_adam(lr = 0.01)
+
+model <- keras_model(c(input1, 
+                       input2, 
+                       input3, 
+                       input4,
+                       input5,
+                       input6,
+                       input7,
+                       input8,
+                       input9,
+                       input10,
+                       input11, 
+                       input12, 
+                       input13, 
+                       input14,
+                       input15,
+                       input16,
+                       input17,
+                       input18,
+                       input19,
+                       input20,
+                       input21,
+                       input22,
+                       input23,
+                       input24,
+                       input25), out)
+model %>% compile(
+  optimizer = opt, 
+  loss = "binary_crossentropy", 
+  metrics = list(
+    acc = "binary_accuracy",
+    cross = "binary_crossentropy"
+  )
+)
+```
+
+```{r}
+set.seed(1)
+
+val_sample <- sample.int(nrow(df), size = 0.2*nrow(df))
+
+history <- model %>%
+  fit(
+    list(top1,
+         top2,
+         top3,
+         top4,
+         top5,
+         top6,
+         top7,
+         top8,
+         top9,
+         top10,
+         top11,
+         top12,
+         top13,
+         top14,
+         top15,
+         top16,
+         top17,
+         top18,
+         top19,
+         top20,
+         top21,
+         top22,
+         top23,
+         top24,
+         top25
+         # top1[-val_sample,],
+         # top2[-val_sample,],
+         # top3[-val_sample,],
+         # top4[-val_sample,],
+         # top5[-val_sample,],
+         # top6[-val_sample,],
+         # top7[-val_sample,],
+         # top8[-val_sample,],
+         # top9[-val_sample,],
+         # top10[-val_sample,],
+         # top11[-val_sample,],
+         # top12[-val_sample,],
+         # top13[-val_sample,],
+         # top14[-val_sample,],
+         # top15[-val_sample,],
+         # top16[-val_sample,],
+         # top17[-val_sample,],
+         # top18[-val_sample,],
+         # top19[-val_sample,],
+         # top20[-val_sample,],
+         # top21[-val_sample,],
+         # top22[-val_sample,],
+         # top23[-val_sample,],
+         # top24[-val_sample,],
+         # top25[-val_sample,]
+         ),
+    # df$up[-val_sample], 
+    df$up, 
+    batch_size = 128, 
+    epochs = 10, 
+    # validation_data = list(
+    #   list(top1[val_sample,],
+    #        top2[val_sample,],
+    #        top3[val_sample,],
+    #        top4[val_sample,],
+    #        top5[val_sample,],
+    #        top6[val_sample,],
+    #        top7[val_sample,],
+    #        top8[val_sample,],
+    #        top9[val_sample,],
+    #        top10[val_sample,],
+    #        top11[val_sample,],
+    #        top12[val_sample,],
+    #        top13[val_sample,],
+    #        top14[val_sample,],
+    #        top15[val_sample,],
+    #        top16[val_sample,],
+    #        top17[val_sample,],
+    #        top18[val_sample,],
+    #        top19[val_sample,],
+    #        top20[val_sample,],
+    #        top21[val_sample,],
+    #        top22[val_sample,],
+    #        top23[val_sample,],
+    #        top24[val_sample,],
+    #        top25[val_sample,]
+    #        ),
+    # df$up[val_sample]
+    # ),
+    callbacks = list(
+    # # callback_early_stopping(patience = 5),
+    callback_reduce_lr_on_plateau(patience = 10)
+    )
+  )
+
+save_model_hdf5(model, "model-news.hdf5", include_optimizer = TRUE)
+save_text_tokenizer(tokenizer_word, "tokenizer-news.hdf5")
+```
+
+
+
+PREDICTION SECTION
+
+
+
+```{r}
+# Prediction --------------------------------------------------------------
+# In a fresh R session:
+# Load model and tokenizer -
+
+#model <- load_model_hdf5("model-news.hdf5", compile = TRUE)
+#tokenizer_word <- load_text_tokenizer("tokenizer-news.hdf5")
+```
+
+```{r}
+predict_stock_direction <- function(model, tokenizer_word, 
+                                    top1, 
+                                    top2, 
+                                    top3, 
+                                    top4,
+                                    top5,
+                                    top6,
+                                    top7,
+                                    top8,
+                                    top9,
+                                    top10,
+                                    top11, 
+                                    top12, 
+                                    top13, 
+                                    top14,
+                                    top15,
+                                    top16,
+                                    top17,
+                                    top18,
+                                    top19,
+                                    top20,
+                                    top21, 
+                                    top22, 
+                                    top23, 
+                                    top24,
+                                    top25) {
+  for (i in 1:25){ 
+    eval(parse(text = paste0("top", i, " = texts_to_sequences(tokenizer_word, top", i, ")")))
+    eval(parse(text = paste0("top", i, " = pad_sequences(top", i, ", maxlen = FLAGS$max_len_padding_word)")))
+    }
+  
+  as.numeric(predict(model, list(top1, 
+                                 top2, 
+                                 top3, 
+                                 top4,
+                                 top5,
+                                 top6,
+                                 top7,
+                                 top8,
+                                 top9,
+                                 top10,
+                                 top11, 
+                                 top12, 
+                                 top13, 
+                                 top14,
+                                 top15,
+                                 top16,
+                                 top17,
+                                 top18,
+                                 top19,
+                                 top20,
+                                 top21, 
+                                 top22, 
+                                 top23, 
+                                 top24,
+                                 top25)))
+}
+```
+
+```{r}
+# Getting train predictions
+train_predictions = round(predict_stock_direction(model, tokenizer_word,
+                                                  df$Top1,#[-val_sample], 
+                                                  df$Top2,#[-val_sample], 
+                                                  df$Top3,#[-val_sample], 
+                                                  df$Top4,#[-val_sample],
+                                                  df$Top5,#[-val_sample],
+                                                  df$Top6,#[-val_sample],
+                                                  df$Top7,#[-val_sample],
+                                                  df$Top8,#[-val_sample],
+                                                  df$Top9,#[-val_sample],
+                                                  df$Top10,#[-val_sample],
+                                                  df$Top11,#[-val_sample], 
+                                                  df$Top12,#[-val_sample], 
+                                                  df$Top13,#[-val_sample], 
+                                                  df$Top14,#[-val_sample],
+                                                  df$Top15,#[-val_sample],
+                                                  df$Top16,#[-val_sample],
+                                                  df$Top17,#[-val_sample],
+                                                  df$Top18,#[-val_sample],
+                                                  df$Top19,#[-val_sample],
+                                                  df$Top20,#[-val_sample],
+                                                  df$Top21,#[-val_sample], 
+                                                  df$Top22,#[-val_sample], 
+                                                  df$Top23,#[-val_sample], 
+                                                  df$Top24,#[-val_sample],
+                                                  df$Top25)#[-val_sample])
+                                                  ,5)
+
+                                                  
+# train_results <- tibble(date = df$Date[-val_sample]) %>%
+#   mutate(change = df$change[-val_sample]) %>%
+#   mutate(up = df$up[-val_sample]) %>%
+#   mutate(train_predictions_change = train_predictions) %>%
+#   mutate(train_predictions_direction = train_predictions>0.5) %>%
+#   mutate(correct = (up == train_predictions_direction))
+
+train_results <- tibble(date = df$Date) %>%
+  mutate(change = df$change) %>%
+  mutate(up = df$up) %>%
+  mutate(train_predictions_change = train_predictions) %>%
+  mutate(train_predictions_direction = train_predictions>0.5) %>%
+  mutate(correct = (up == train_predictions_direction))
+```
+
+```{r}
+# Getting train prediction metrics
+
+# auc(df$up[-val_sample]==TRUE, train_predictions)
+# accuracy(df$up[-val_sample]==TRUE, train_predictions>0.5)
+# f1(df$up[-val_sample]==TRUE, train_predictions>0.5)
+
+auc(df$up==TRUE, train_predictions)
+accuracy(df$up==TRUE, train_predictions>0.5)
+f1(df$up==TRUE, train_predictions>0.5)
+```
+```{r}
+val_predictions = round(predict_stock_direction(model, tokenizer_word,
+                                              df$Top1[val_sample], 
+                                              df$Top2[val_sample], 
+                                              df$Top3[val_sample], 
+                                              df$Top4[val_sample],
+                                              df$Top5[val_sample],
+                                              df$Top6[val_sample],
+                                              df$Top7[val_sample],
+                                              df$Top8[val_sample],
+                                              df$Top9[val_sample],
+                                              df$Top10[val_sample],
+                                              df$Top11[val_sample], 
+                                              df$Top12[val_sample], 
+                                              df$Top13[val_sample], 
+                                              df$Top14[val_sample],
+                                              df$Top15[val_sample],
+                                              df$Top16[val_sample],
+                                              df$Top17[val_sample],
+                                              df$Top18[val_sample],
+                                              df$Top19[val_sample],
+                                              df$Top20[val_sample],
+                                              df$Top21[val_sample], 
+                                              df$Top22[val_sample], 
+                                              df$Top23[val_sample], 
+                                              df$Top24[val_sample],
+                                              df$Top25[val_sample]),5)
+
+val_results <- tibble(date = df$Date[val_sample]) %>%
+  mutate(change = df$change[val_sample]) %>%
+  mutate(up = df$up[val_sample]) %>%
+  mutate(val_predictions_change = val_predictions) %>%
+  mutate(val_predictions_direction = val_predictions>0.5) %>%
+  mutate(correct = (up == val_predictions_direction))
+```
+
+```{r}
+auc(df$up[val_sample]==TRUE, val_predictions)
+accuracy(df$up[val_sample]==TRUE, val_predictions>0.5)
+f1(df$up[val_sample]==TRUE, val_predictions>0.5)
+```
+
+
+```{r}
+# Getting test predictions
+test_predictions = round(predict_stock_direction(model, tokenizer_word,
+                                                 test$Top1, 
+                                                 test$Top2, 
+                                                 test$Top3,
+                                                 test$Top4,
+                                                 test$Top5,
+                                                 test$Top6,
+                                                 test$Top7,
+                                                 test$Top8,
+                                                 test$Top9,
+                                                 test$Top10,
+                                                 test$Top11, 
+                                                 test$Top12, 
+                                                 test$Top13, 
+                                                 test$Top14,
+                                                 test$Top15,
+                                                 test$Top16,
+                                                 test$Top17,
+                                                 test$Top18,
+                                                 test$Top19,
+                                                 test$Top20,
+                                                 test$Top21, 
+                                                 test$Top22, 
+                                                 test$Top23, 
+                                                 test$Top24,
+                                                 test$Top25),5)
+                                          
+test_results = tibble(Date = test$Date, stock_directionality = 1*(test_predictions>0.5))
+
+test_results_count = test_results %>%
+  count(stock_directionality)
+```
+```{r}
+# save_model_hdf5(model, "model-same-security-final.hdf5", include_optimizer = TRUE)
+# save_text_tokenizer(tokenizer_word, "tokenizer-same-security-final-word.hdf5")
+```
+
+```{r}
+#write_csv(test_results, "submission_phase2_team6.csv")
+```
+
+
